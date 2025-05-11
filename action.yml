@@ -1,0 +1,17 @@
+name: "GitHub Repository Insights"
+description: "Save GitHub repository insights permanently."
+
+inputs:
+  pat-token:
+    description: "GitHub Personal Access Token for fetching repository data"
+    required: true
+  repos:
+    description: "Comma-separated list of repositories (e.g., owner/repo,owner/repo2)."
+    required: true
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - ${{ inputs.pat-token }}
+    - ${{ inputs.repos }}
