@@ -1,5 +1,8 @@
 name: "GitHub Repository Insights"
 description: "Save GitHub repository insights permanently."
+branding:
+  icon: "bar-chart"
+  color: "blue"
 
 inputs:
   pat-token:
