@@ -23,7 +23,7 @@ name: Generate Insights
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs daily
+    - cron: "0 1 * * *" # Runs daily
   workflow_dispatch:
 
 jobs:
