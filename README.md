@@ -61,3 +61,13 @@ To make the generated insights accessible as a GitHub Pages site:
 4. Click **Save**.
 
 Once enabled, your insights will be available at `https://<your-username>.github.io/<repository-name>/insights`.
+
+## Local Testing
+
+You can test this Action locally:
+
+```bash
+pip install -r requirements.txt
+
+env INPUT_PAT-TOKEN=<your_personal_access_token> INPUT_REPOS="owner/repo1,owner/repo2" python github_insights.py
+```
