@@ -5,11 +5,11 @@ from src.data_processing import merge_data, save_data, preprocess_data
 from src.plotting import plot_chart
 
 if __name__ == "__main__":
-    pat_token = os.getenv("INPUT_PAT_TOKEN")
+    pat_token = os.getenv("INPUT_PAT-TOKEN")
     repos = os.getenv("INPUT_REPOS").split(",")
 
     if not pat_token or not repos:
-        raise ValueError("Both INPUT_PAT_TOKEN and INPUT_REPOS must be provided.")
+        raise ValueError("Both 'pat-token' and 'repos' must be provided.")
 
     os.makedirs("insights/images", exist_ok=True)
     os.makedirs("insights/data", exist_ok=True)
