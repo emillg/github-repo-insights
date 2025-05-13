@@ -33,22 +33,28 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: insights
+          fetch-depth: 0
+
+      - name: Ensure 'insights' branch exists
+        run: |
+          git fetch origin insights || echo "No 'insights' branch found"
+          git checkout insights || git checkout -b insights
 
       - name: Generate GitHub Insights
-        uses: emillg/github-repo-insights@v1
+        uses: emillg/github-repo-insights@v1.0.0
         with:
           repos: "owner/repo1,owner/repo2"
           pat-token: ${{ secrets.PAT_TOKEN }}
 
-      # Commit and push the generated insights to the 'insights' branch
       - name: Commit and push insights
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -B insights
           git add insights/
-          git commit -m "Update GitHub Insights"
-          git push -u origin insights --force
+          git commit -m "Update GitHub Insights" || echo "No changes to commit"
+          git push origin insights
 ```
 
 ## GitHub Pages
