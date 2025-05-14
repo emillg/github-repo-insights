@@ -2,6 +2,8 @@
 
 This GitHub Action collects insights data from GitHub for specified repositories, including views, clones, and referral sources. It saves raw and merged data in the repository and generates Markdown reports for GitHub Pages, enabling long-term tracking beyond GitHub's 14-day limitation.
 
+![Demo](images/demo.png)
+
 ## Inputs
 
 - `repos` (required): Comma-separated list of repositories (e.g., `owner/repo1,owner/repo2`).
