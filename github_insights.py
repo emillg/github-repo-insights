@@ -1,8 +1,9 @@
 import os
 from datetime import datetime
+import json
+import shutil
 from src.api import fetch_repo_views, fetch_repo_clones, fetch_repo_referrals
 from src.data_processing import merge_data, save_data, preprocess_data
-from src.plotting import plot_line_chart, plot_bar_chart
 
 if __name__ == "__main__":
     pat_token = os.getenv("INPUT_PAT-TOKEN")
@@ -11,10 +12,49 @@ if __name__ == "__main__":
     if not pat_token or not repos:
         raise ValueError("Both 'pat-token' and 'repos' must be provided.")
 
-    os.makedirs("insights/images", exist_ok=True)
-    os.makedirs("insights/data", exist_ok=True)
+    DOCS_DIR = "docs"
+    DATA_DIR = os.path.join(DOCS_DIR, "data")
+
+    DOCSIFY_INDEX_HTML_CONTENT = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>GitHub Repository Insights</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="description" content="Description">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify/lib/themes/buble.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    window.$docsify = {
+      name: 'GitHub Repository Insights',
+      repo: 'emillg/github-repo-insights',
+      subMaxLevel: 3
+    };
+  </script>
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/docsify.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/vega@6"></script>
+  <script src="//cdn.jsdelivr.net/npm/vega-lite@6"></script>
+  <script src="//cdn.jsdelivr.net/npm/vega-embed@7"></script>
+  <script src="//cdn.jsdelivr.net/gh/jerCarre/vega_docsify@v1.1/lib/docsivega.js"></script>
+</body>
+</html>
+"""
+
+    if os.path.exists("insights/data/"):
+        images_dir = os.path.join("insights", "images")
+        if os.path.exists(images_dir):
+            print("Deleting insights/images directory ...")
+            shutil.rmtree(images_dir)
+        print("Renaming 'insights' directory to 'docs' ...")
+        os.rename("insights", "docs")
+    else:
+        os.makedirs(DATA_DIR, exist_ok=True)
+
     current_date = datetime.now().strftime("%Y%m%d")
-    raw_data_dir = f"insights/data/raw/{current_date}"
+    raw_data_dir = f"{DATA_DIR}/raw/{current_date}"
     os.makedirs(raw_data_dir, exist_ok=True)
 
     markdown_content = ""
@@ -46,9 +86,9 @@ if __name__ == "__main__":
             views_data_cleaned = {"views": views_data["views"]}
             clones_data_cleaned = {"clones": clones_data["clones"]}
 
-            views_file = f"insights/data/{repo_safe_name}_views.json"
-            clones_file = f"insights/data/{repo_safe_name}_clones.json"
-            referrals_file = f"insights/data/{repo_safe_name}_referrals.json"
+            views_file = f"{DATA_DIR}/{repo_safe_name}_views.json"
+            clones_file = f"{DATA_DIR}/{repo_safe_name}_clones.json"
+            referrals_file = f"{DATA_DIR}/{repo_safe_name}_referrals.json"
 
             merged_views = merge_data(views_data_cleaned, views_file, "views")
             merged_clones = merge_data(
@@ -57,11 +97,10 @@ if __name__ == "__main__":
             save_data(merged_clones, clones_file)
             save_data(referrals_data, referrals_file)
 
-            total_views = sum(item["count"] for item in merged_views["views"])
-            total_clones = sum(item["count"]
-                               for item in merged_clones["clones"])
-            repo_views_summary[repo] = total_views
-            repo_clones_summary[repo] = total_clones
+            repo_views_summary[repo] = sum(item["count"]
+                                           for item in merged_views["views"])
+            repo_clones_summary[repo] = sum(item["count"]
+                                            for item in merged_clones["clones"])
 
             # Preprocess data for plotting
             total_views = preprocess_data(merged_views["views"])
@@ -77,34 +116,124 @@ if __name__ == "__main__":
 
             # Generate charts
             print(f"Generating charts for {repo}...")
-            views_chart_filename = f"insights/images/{repo_safe_name}_views.png"
-            clones_chart_filename = f"insights/images/{repo_safe_name}_clones.png"
+            repo_views_chart = """
+```vega
+{{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": 800,
+  "title": "Visitors for {repo}",
+  "data": {{
+    "values": [
+      {values_data}
+    ]
+  }},
+  "mark": "line",
+  "encoding": {{
+    "x": {{
+      "field": "date",
+      "type": "temporal",
+      "title": "Date",
+      "scale": {{ "type": "utc" }},
+      "axis": {{
+        "format": "%Y-%m-%d",
+        "labelAngle": -45,
+        "labelOverlap": false,
+        "tickCount": {{"interval": "day", "step": 1}}
+      }}
+    }},
+    "y": {{"field": "value", "type": "quantitative", "title": "Views"}},
+    "color": {{
+      "field": "type",
+      "type": "nominal",
+      "legend": {{
+        "title": null
+      }}
+    }},
+    "tooltip": [
+      {{ "field": "date", "type": "temporal", "title": "Date" }},
+      {{ "field": "type", "type": "nominal", "title": "Metric" }},
+      {{ "field": "value", "type": "quantitative", "title": "Value" }}
+    ]
+  }}
+}}
+```
+""".format(
+                repo=repo,
+                values_data=",\n      ".join(
+                    json.dumps(
+                        {"date": item["timestamp"][:10], "type": "Total Views", "value": item["count"]})
+                    for item in merged_views["views"])
+                + ",\n      "
+                + ",\n      ".join(
+                    json.dumps(
+                        {"date": item["timestamp"][:10], "type": "Unique Views", "value": item["uniques"]})
+                    for item in merged_views["views"]))
 
-            plot_line_chart(
-                data_series=[total_views, unique_views],
-                title=f"Visitors for {repo}",
-                ylabel="Views",
-                labels=["Total Views", "Unique Views"],
-                filename=views_chart_filename
-            )
-
-            plot_line_chart(
-                data_series=[total_clones, unique_clones],
-                title=f"Git Clones for {repo}",
-                ylabel="Clones",
-                labels=["Total Clones", "Unique Clones"],
-                filename=clones_chart_filename
+            repo_clones_chart = """
+```vega
+{{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": 800,
+  "title": "Git Clones for {repo}",
+  "data": {{
+    "values": [
+      {values_data}
+    ]
+  }},
+  "mark": "line",
+  "encoding": {{
+    "x": {{
+      "field": "date",
+      "type": "temporal",
+      "title": "Date",
+      "scale": {{ "type": "utc" }},
+      "axis": {{
+        "format": "%Y-%m-%d",
+        "labelAngle": -45,
+        "labelOverlap": false,
+        "tickCount": {{"interval": "day", "step": 1}}
+      }}
+    }},
+    "y": {{"field": "value", "type": "quantitative", "title": "Clones"}},
+    "color": {{
+      "field": "type",
+      "type": "nominal",
+      "legend": {{
+        "title": null
+      }}
+    }},
+    "tooltip": [
+      {{ "field": "date", "type": "temporal", "title": "Date" }},
+      {{ "field": "type", "type": "nominal", "title": "Metric" }},
+      {{ "field": "value", "type": "quantitative", "title": "Value" }}
+    ]
+  }}
+}}
+```
+""".format(
+                repo=repo,
+                values_data=",\n      ".join(
+                    json.dumps(
+                        {"date": item["timestamp"][:10], "type": "Total Clones", "value": item["count"]})
+                    for item in merged_clones["clones"]
+                )
+                + ",\n      "
+                + ",\n      ".join(
+                    json.dumps({"date": item["timestamp"][:10],
+                                "type": "Unique Clones", "value": item["uniques"]})
+                    for item in merged_clones["clones"]
+                )
             )
 
             # Generate Markdown content
             print(f"Generating Markdown for {repo}...")
-            markdown_content += f"### {repo}\n\n"
-
-            # Add charts side by side using a Markdown table
-            markdown_content += (
-                f"| ![Visitors Chart for {repo}](images/{repo_safe_name}_views.png) "
-                f"| ![Git Clones Chart for {repo}](images/{repo_safe_name}_clones.png) |\n"
-                f"|-|-|\n\n"
+            markdown_content += """### {repo}
+{repo_views_chart}
+{repo_clones_chart}
+""".format(
+                repo=repo,
+                repo_views_chart=repo_views_chart,
+                repo_clones_chart=repo_clones_chart
             )
 
             markdown_content += "| Referral Source | Views | Unique Visitors |\n"
@@ -113,46 +242,77 @@ if __name__ == "__main__":
                 markdown_content += f"| {referral['referrer']} | {referral['count']} | {referral['uniques']} |\n"
             markdown_content += "\n"
 
-        # Generate a bar chart for the top 10 repositories by views
         print("Generating top 10 repositories charts...")
         sorted_views = sorted(repo_views_summary.items(),
                               key=lambda x: x[1], reverse=True)[:10]
         sorted_clones = sorted(repo_clones_summary.items(),
                                key=lambda x: x[1], reverse=True)[:10]
 
-        # Top 10 by views
-        view_categories = [item[0] for item in sorted_views]
+        print("Generating chart for top 10 repositories by views...")
         view_values = [item[1] for item in sorted_views]
-        top_views_chart_filename = "insights/images/top_10_repos_views.png"
-        plot_bar_chart(
-            categories=view_categories,
-            values=view_values,
-            title="Top 10 Repositories by Visitors",
-            xlabel="Total Views",
-            ylabel="Repositories",
-            filename=top_views_chart_filename
+        overview_views_chart = """
+```vega
+{{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": 800,
+  "height": 300,
+  "title": "Top 10 Repositories by Visitors",
+  "data": {{
+    "values": [
+      {values_data}
+    ]
+  }},
+  "mark": "bar",
+  "encoding": {{
+    "y": {{"field": "repository", "type": "nominal", "title": "Repository", "sort": "-x"}},
+    "x": {{"field": "views", "type": "quantitative", "title": "Total Views"}}
+  }}
+}}
+```
+""".format(
+            values_data=", ".join(
+                f'{{"repository": "{repo.split("/")[-1]}", "views": {views}}}'
+                for repo, views in sorted_views
+            )
         )
 
-        # Top 10 by clones
-        clone_categories = [item[0] for item in sorted_clones]
         clone_values = [item[1] for item in sorted_clones]
-        top_clones_chart_filename = "insights/images/top_10_repos_clones.png"
-        plot_bar_chart(
-            categories=clone_categories,
-            values=clone_values,
-            title="Top 10 Repositories by Git Clones",
-            xlabel="Total Clones",
-            ylabel="Repositories",
-            filename=top_clones_chart_filename
+        print("Generating chart for top 10 repositories by clones...")
+        overview_clones_chart = """
+```vega
+{{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": 800,
+  "height": 300,
+  "title": "Top 10 Repositories by Git Clones",
+  "data": {{
+    "values": [
+      {values_data}
+    ]
+  }},
+  "mark": "bar",
+  "encoding": {{
+    "y": {{"field": "repository", "type": "nominal", "title": "Repository", "sort": "-x"}},
+    "x": {{"field": "clones", "type": "quantitative", "title": "Total Clones"}}
+  }}
+}}
+```
+""".format(
+            values_data=", ".join(
+                f'{{"repository": "{repo.split("/")[-1]}", "clones": {clones}}}'
+                for repo, clones in sorted_clones
+            )
         )
 
         # Add the top 10 charts to the beginning of the Markdown content
-        overview_content = "# GitHub Insights\n\n"
-        overview_content += "## Overview\n\n"
-        overview_content += (
-            "| ![Top 10 Repositories by Views](images/top_10_repos_views.png) "
-            "| ![Top 10 Repositories by Clones](images/top_10_repos_clones.png) |\n"
-            "|-|-|\n\n"
+        overview_content = """# Insights
+
+## Overview
+{overview_views_chart}
+{overview_clones_chart}
+""".format(
+            overview_views_chart=overview_views_chart,
+            overview_clones_chart=overview_clones_chart
         )
 
         breakdown_content = "## Repository Breakdown\n\n"
@@ -160,8 +320,12 @@ if __name__ == "__main__":
         # Combine overview and per-repo content
         markdown_content = overview_content + breakdown_content + markdown_content
 
-        with open("insights/README.md", "w") as markdown_file:
+        with open(f"{DOCS_DIR}/README.md", "w") as markdown_file:
             markdown_file.write(markdown_content)
+
+        print("Generating index.html for Docsify...")
+        with open(f"{DOCS_DIR}/index.html", "w") as mkdocs_file:
+            mkdocs_file.write(DOCSIFY_INDEX_HTML_CONTENT)
 
         print("Insights generated successfully!")
 
