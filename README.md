@@ -42,7 +42,7 @@ jobs:
           git checkout insights || git checkout -b insights
 
       - name: Generate GitHub Insights
-        uses: emillg/github-repo-insights@v1.0.0
+        uses: emillg/github-repo-insights@v1.1.0
         with:
           repos: "owner/repo1,owner/repo2"
           pat-token: ${{ secrets.PAT_TOKEN }}
@@ -51,7 +51,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add insights/
+          git add -A
           git commit -m "Update GitHub Insights" || echo "No changes to commit"
           git push origin insights
 ```
