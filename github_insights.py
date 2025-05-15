@@ -227,11 +227,19 @@ if __name__ == "__main__":
 
             # Generate Markdown content
             print(f"Generating Markdown for {repo}...")
+            repo_url = f"https://github.com/{repo}"
             markdown_content += """### {repo}
+
+[![GitHub Repo](https://img.shields.io/badge/-Repository-white?logo=github&logoColor=181717&style=social)]({repo_url})&nbsp;
+[![GitHub Stars](https://img.shields.io/github/stars/{repo}?style=social)]({repo_url}/stargazers)&nbsp;
+[![GitHub Forks](https://img.shields.io/github/forks/{repo}?style=social)]({repo_url}/network/members)&nbsp;
+[![GitHub Watchers](https://img.shields.io/github/watchers/{repo}?style=social)]({repo_url}/watchers)
+
 {repo_views_chart}
 {repo_clones_chart}
 """.format(
                 repo=repo,
+                repo_url=repo_url,
                 repo_views_chart=repo_views_chart,
                 repo_clones_chart=repo_clones_chart
             )
@@ -262,7 +270,10 @@ if __name__ == "__main__":
       {values_data}
     ]
   }},
-  "mark": "bar",
+  "mark": {{
+    "type": "bar",
+    "color": "#ff7f0e"
+  }},
   "encoding": {{
     "y": {{"field": "repository", "type": "nominal", "title": "Repository", "sort": "-x"}},
     "x": {{"field": "views", "type": "quantitative", "title": "Total Views"}}
@@ -290,7 +301,10 @@ if __name__ == "__main__":
       {values_data}
     ]
   }},
-  "mark": "bar",
+  "mark": {{
+    "type": "bar",
+    "color": "#ff7f0e"
+  }},
   "encoding": {{
     "y": {{"field": "repository", "type": "nominal", "title": "Repository", "sort": "-x"}},
     "x": {{"field": "clones", "type": "quantitative", "title": "Total Clones"}}
