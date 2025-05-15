@@ -1,8 +1,8 @@
 name: "GitHub Repository Insights"
-description: "Save GitHub repository insights permanently."
+description: "Preserve GitHub insights beyond 14 days with a built-in GitHub Pages dashboard"
 branding:
   icon: "bar-chart"
-  color: "blue"
+  color: "orange"
 
 inputs:
   pat-token:
